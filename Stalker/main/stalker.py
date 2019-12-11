@@ -70,10 +70,11 @@ def getEventos(calendar_id):
         return events
 
 
-def getConexao():
+def getConexao(base='postgres'):
     con = psycopg2.connect(
-        dbname='postgres',
-        user='postgres', host='localhost',
+        dbname=base,
+        user='postgres',
+        host='localhost',
         password='postgres'
     )
 
@@ -149,13 +150,16 @@ def backupRestore(base, backup):
     print('Restaurando backup ' + backup + ' na base ' + base)
     nome_base = preparaNomeBase(base)
     print(backup)
-    return sp.call(
+    sp.call(
         [
             os.path.realpath('util/restaura_backup.bat'),
             base,
             backup
         ]
     )
+
+    cur = getConexao(base).cursor()
+    cur.execute("SELECT ns.processoposrestore();")
 
 
 
@@ -171,12 +175,13 @@ def main():
     # os.environ["HTTP_PROXY"] = 'http://irvingoliveira:system32@192.168.0.153:3128'
     # os.environ["HTTPS_PROXY"] = 'https://irvingoliveira:system32@192.168.0.153:3128'
 
+    result = 0
     calendarioSprints = 'nasajon.com.br_a6edh31lm6k4ntrbh6mdm91qng@group.calendar.google.com'
     calendarioCVF = 'nasajon.com.br_a6edh31lm6k4ntrbh6mdm91qng@group.calendar.google.com'
 
     eventoSprint = getEventos(calendarioSprints)
     release = None
-    if not eventoSprint is None:
+    if eventoSprint is not None:
         for event in eventoSprint:
             if ("Testes" in event['summary']):
                 if release is not None and event['summary'][-2:] > release:
@@ -184,9 +189,7 @@ def main():
                 release = event['summary'][-2:]
                 nome_banco = preparaNomeBase('integratto2_sprint' + release)
                 createDatabase(nome_banco)
-                if preparaAmbiente(nome_banco, release) != 0:
-                    print('Falha ao preparar o ambiente.')
-                    sys.exit(1)
+                preparaAmbiente(nome_banco, release)
 
     # ATUALIZA AS BASES DE TESTE PERSONALIZADO DO DIA
 
@@ -213,12 +216,8 @@ def main():
                             build = tag[tag.find(".") + 1:]
                     if '[backup]' in tag:
                         backup = tag[8:]
-                        if backupRestore(nome_banco, backup) != 0:
-                            print('Falha ao restaurar o backup')
-                            sys.exit(1)
-                if preparaAmbiente(nome_banco, release, build) != 0:
-                    print('Falha ao preparar o ambiente.')
-                    sys.exit(1)
+                        backupRestore(nome_banco, backup)
+                preparaAmbiente(nome_banco, release, build)
                 atualizaEvento(calendarioCVF, event['id'], nome_banco)
 
 
