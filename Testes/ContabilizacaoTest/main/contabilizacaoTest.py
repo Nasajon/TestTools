@@ -74,7 +74,7 @@ def main():
         'impecavel_contabilizacao'
     ]
 
-    print('Baixando instalador')
+    print('Baixando o instalador %s' % nome_arquivo)
     if not os.path.isfile(instalador):
         url = "http://cdn.nasajon.com.br/instaladores/" + nome_arquivo
         with urllib.request.urlopen(url) as resposta, open(instalador, 'wb') as saida:
@@ -121,7 +121,15 @@ def main():
             print('Configurando permissões')
 
             cur = get_conexao(base_teste).cursor()
-            cur.execute("select * from ns.processoposrestore()")
+            cur.execute("select * from ns.permissoes()")
+            cur.close()
+
+            cur = get_conexao(base_teste).cursor()
+            cur.execute("select * from ns.criacaousuarios()")
+            cur.close()
+
+            cur = get_conexao(base_teste).cursor()
+            cur.execute("select * from ns.licenciamento()")
             cur.close()
 
             print("Atualizando o banco " + base_teste)
