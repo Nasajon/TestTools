@@ -93,9 +93,10 @@ def createDatabase(nome):
 
 
 def preparaAmbiente(nome_banco, num_release, num_build=None):
-    print('Preparando o ambiente para ' + nome_banco + ' release ' + num_release)
+    n_release = str(num_release)
+    print('Preparando o ambiente para ' + nome_banco + ' release ' + n_release)
     if num_build is None:
-        endereco = "http://v2.nasajon.com.br/job/Instalador/job/v2." + num_release + "/api/json?pretty=true"
+        endereco = "http://v2.nasajon.com.br/job/Instalador/job/v2." + n_release + "/api/json?pretty=true"
         response = rq.get(endereco)
         job = json.loads(response.text)
         build = str(job["lastSuccessfulBuild"]["number"])
@@ -103,8 +104,8 @@ def preparaAmbiente(nome_banco, num_release, num_build=None):
         build = num_build
 
     nome_pasta_instaladores = "C:/Users/desenvolvimento/Instaladores/"
-    nome_arquivo = "nsjInstaladorV2_2." + num_release + "." + build + ".0.exe"
-    nome_arquivo_cliente = "nsjInstaladorCliente_2." + num_release + "." + build + ".0.exe"
+    nome_arquivo = "nsjInstaladorV2_2." + n_release + "." + build + ".0.exe"
+    nome_arquivo_cliente = "nsjInstaladorCliente_2." + n_release + "." + build + ".0.exe"
     destino = nome_pasta_instaladores + nome_arquivo
     destino_cliente = nome_pasta_instaladores + nome_arquivo_cliente
 
@@ -149,12 +150,13 @@ def atualizaEvento(calendar_id, evento_id, nome_banco):
 def backupRestore(base, backup):
     print('Restaurando backup ' + backup + ' na base ' + base)
     nome_base = preparaNomeBase(base)
-    print(backup)
+    bkp = '\\\\nas-server\\suporte\\'+backup[3:]
+    print(bkp)
     sp.call(
         [
             os.path.realpath('util/restaura_backup.bat'),
-            base,
-            backup
+            nome_base,
+            '\\\\nas-server\\suporte\\Clientes\\2019\\12 - Dezembro\\ROBO COUPE\\robotcoupe_20191216_1048326.backup'
         ]
     )
 
@@ -175,21 +177,21 @@ def main():
     # os.environ["HTTP_PROXY"] = 'http://irvingoliveira:system32@192.168.0.153:3128'
     # os.environ["HTTPS_PROXY"] = 'https://irvingoliveira:system32@192.168.0.153:3128'
 
-    result = 0
     calendarioSprints = 'nasajon.com.br_a6edh31lm6k4ntrbh6mdm91qng@group.calendar.google.com'
     calendarioCVF = 'nasajon.com.br_a6edh31lm6k4ntrbh6mdm91qng@group.calendar.google.com'
 
     eventoSprint = getEventos(calendarioSprints)
-    release = None
+    release = 0
     if eventoSprint is not None:
         for event in eventoSprint:
-            if ("Testes" in event['summary']):
-                if release is not None and event['summary'][-2:] > release:
+            if "Testes" in event['summary']:
+                if 0 < release < int(event['summary'][-2:]):
                     continue
-                release = event['summary'][-2:]
-                nome_banco = preparaNomeBase('integratto2_sprint' + release)
-                createDatabase(nome_banco)
-                preparaAmbiente(nome_banco, release)
+                release = int(event['summary'][-2:])
+        # nome_banco = preparaNomeBase('integratto2_sprint' + release)
+        nome_banco = 'nasajon_integrada'
+        createDatabase(nome_banco)
+        preparaAmbiente(nome_banco, release)
 
     # ATUALIZA AS BASES DE TESTE PERSONALIZADO DO DIA
 
