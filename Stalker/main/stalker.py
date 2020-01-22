@@ -141,28 +141,50 @@ def atualizaEvento(calendar_id, evento_id, nome_banco):
     print('Atualizando informações do evento no calendário')
     service = getCalendarService()
     evento = service.events().get(calendarId=calendar_id, eventId=evento_id).execute()
-    evento['description'] = evento['description'] + '\n\nAtualizado por Stalker\n\n' + \
+    evento['description'] = evento['description'] + \
+                            '\n\n-----------------------' + \
+                            '\nAtualizado por Stalker\n' + \
                             '----------------------- \n\nBanco = ' + \
                             nome_banco + ' \nBase = 192.168.0.119:5432\n Login = postgres\n Senha = postgres'
-    service.events().update(calendarId=calendar_id, eventId=evento_id, sendUpdates="all", body=evento).execute()
+    service.events().update(
+        calendarId=calendar_id,
+        eventId=evento_id,
+        sendUpdates="all",
+        body=evento
+    ).execute()
 
 
 def backupRestore(base, backup):
     print('Restaurando backup ' + backup + ' na base ' + base)
     nome_base = preparaNomeBase(base)
+
+    cur = getConexao(nome_base).cursor()
+    cur.execute("SET CLIENT_ENCODING TO 'win1252'")
+
     bkp = '\\\\nas-server\\suporte\\'+backup[3:]
-    print(bkp)
+    print('Caminho do backup ajustado para ' + bkp)
+
     sp.call(
         [
             os.path.realpath('util/restaura_backup.bat'),
             nome_base,
-            '\\\\nas-server\\suporte\\Clientes\\2019\\12 - Dezembro\\ROBO COUPE\\robotcoupe_20191216_1048326.backup'
+            bkp
         ]
     )
 
-    cur = getConexao(base).cursor()
-    cur.execute("SELECT ns.processoposrestore();")
+    print('Configurando permissões')
 
+    cur = getConexao(nome_base).cursor()
+    cur.execute("select * from ns.permissoes()")
+    cur.close()
+
+    cur = getConexao(nome_base).cursor()
+    cur.execute("select * from ns.criacaousuarios()")
+    cur.close()
+
+    cur = getConexao(nome_base).cursor()
+    cur.execute("select * from ns.licenciamento()")
+    cur.close()
 
 
 def preparaNomeBase(nome):
@@ -179,19 +201,21 @@ def main():
 
     calendarioSprints = 'nasajon.com.br_a6edh31lm6k4ntrbh6mdm91qng@group.calendar.google.com'
     calendarioCVF = 'nasajon.com.br_a6edh31lm6k4ntrbh6mdm91qng@group.calendar.google.com'
-
-    eventoSprint = getEventos(calendarioSprints)
-    release = 0
-    if eventoSprint is not None:
-        for event in eventoSprint:
-            if "Testes" in event['summary']:
-                if 0 < release < int(event['summary'][-2:]):
-                    continue
-                release = int(event['summary'][-2:])
-        # nome_banco = preparaNomeBase('integratto2_sprint' + release)
-        nome_banco = 'nasajon_integrada'
-        createDatabase(nome_banco)
-        preparaAmbiente(nome_banco, release)
+    try:
+        eventoSprint = getEventos(calendarioSprints)
+        release = 0
+        if eventoSprint is not None:
+            for event in eventoSprint:
+                if "Testes" in event['summary']:
+                    if 0 < release < int(event['summary'][-2:]):
+                        continue
+                    release = int(event['summary'][-2:])
+            # nome_banco = preparaNomeBase('integratto2_sprint' + release)
+            nome_banco = 'nasajon_integrada'
+            createDatabase(nome_banco)
+            preparaAmbiente(nome_banco, release)
+    except:
+        print('Ocorreu um erro ao gerar a base da sprint. Verifique o log para mais informações.')
 
     # ATUALIZA AS BASES DE TESTE PERSONALIZADO DO DIA
 
@@ -212,7 +236,8 @@ def main():
                         release = tag[5:tag.find('.')]
                         print(release)
                         nome_banco = preparaNomeBase(
-                            cliente + '_' + release + '_' + datetime.datetime.utcnow().isoformat())
+                            cliente + '_' + release + '_' + datetime.datetime.utcnow().strftime("%d-%m-%y")
+                        )
                         createDatabase(nome_banco)
                         if '*' not in tag:
                             build = tag[tag.find(".") + 1:]
