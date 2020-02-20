@@ -59,6 +59,10 @@ def main():
 
     caminho_log = 'C:/Nasajon'
 
+    error_file = os.path.realpath('NS_INSTALL_ERROR_FILE')
+    if os.path.exists(error_file):
+        os.remove(error_file)
+
     nome_pasta_instaladores = "C:/Users/desenvolvimento/Instaladores/"
 
     release = get_release()
@@ -98,8 +102,13 @@ def main():
         finally:
             cur.close()
 
-
         base_teste = base + '_teste'
+        print('Encerrando conexões com a base ' + base_teste + '')
+        cur = get_conexao('postgres').cursor()
+        try:
+            cur.execute("SELECT pg_terminate_backend(pid) from pg_stat_activity where datname = '%s';" % base_teste)
+        finally:
+            cur.close()
 
         print('Excluindo banco ' + base_teste + ' caso já exista')
 
@@ -132,6 +141,9 @@ def main():
             cur.execute("select * from ns.licenciamento()")
             cur.close()
 
+            ####ATENÇÃO####
+            # É necessário que exista uma instalação do ERP na pasta C:\Nasajon Sistemas\Integratto2
+            # Caso contrário o instalador irá tentar fazer uma nova instalação ao invés de atualizar a base e dará erro
             print("Atualizando o banco " + base_teste)
             sp.call(
                 [
@@ -141,13 +153,19 @@ def main():
                     '-SRlocalhost',
                     '-PT5432',
                     '-USpostgres',
-                    '-NB%s' % base_teste,
-                    '-DRC:\Integratto2',
+                    '-NB'+base_teste,
+                    '-DRC:\\Nasajon Sistemas\\Integratto2',
                     '-SCAUS5-DIKI-D576-DYUL',
                     '-PSCFV',
                     '-TI0'
                 ]
             )
+
+            if os.path.exists(error_file):
+                print(
+                    'Ocorreu um erro ao atualizar a base %s. Consulte o log do instalador para maiores informações.' % base_teste
+                )
+                continue
 
             print("Executando rotinas de teste")
             cur = get_conexao(base_teste).cursor()
