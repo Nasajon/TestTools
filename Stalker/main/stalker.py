@@ -89,7 +89,12 @@ def createDatabase(nome):
     result = cur.fetchall()
     if len(result) == 0:
         cur2 = getConexao().cursor()
-        cur2.execute("CREATE DATABASE %s;" % nome)
+        cur2.execute("CREATE DATABASE %s WITH ENCODING = 'UTF8';" % nome)
+        cur2.close()
+
+        cur3 = getConexao().cursor()
+        cur3.execute("ALTER DATABASE %s SET client_encoding = 'WIN1252'" % nome)
+        cur3.close()
 
 
 def preparaAmbiente(nome_banco, num_release, num_build=None):
@@ -133,9 +138,34 @@ def preparaAmbiente(nome_banco, num_release, num_build=None):
     nome_dir = "C:/Nasajon Sistemas/%s" % nome_banco
     if not os.path.isdir(nome_dir):
         os.makedirs(nome_dir)
-    return sp.call(
-        os.path.realpath('util/atualiza_base.bat') + ' %s %s "%s" 0' % (destino, nome_banco, nome_dir)
+
+    ####ATENÇÃO####
+    #É necessário que exista uma instalação do ERP na pasta C:\Nasajon Sistemas\Integratto2
+    #Caso contrário o instalador irá tentar fazer uma nova instalação ao invés de atualizar a base e dará erro
+    sp.call(
+        [
+            destino,
+            '/NOBACKUP',
+            '/NOPAUSE',
+            '-SRlocalhost',
+            '-PT5432',
+            '-USpostgres',
+            '-NB%s' % nome_banco,
+            '-DRC:\\Nasajon Sistemas\\Integratto2',
+            '-SCAUS5-DIKI-D576-DYUL',
+            '-PSCFV',
+            '-TI1'
+        ]
     )
+
+    error_file = os.path.realpath('NS_INSTALL_ERROR_FILE')
+    if os.path.exists(error_file):
+        print(
+            'Ocorreu um erro ao atualizar a base %s. Consulte o log do instalador para maiores informações.' % nome_banco
+        )
+        sys.exit(1)
+
+
 
 def atualizaEvento(calendar_id, evento_id, nome_banco):
     print('Atualizando informações do evento no calendário')
@@ -199,6 +229,10 @@ def main():
     # os.environ["HTTP_PROXY"] = 'http://irvingoliveira:system32@192.168.0.153:3128'
     # os.environ["HTTPS_PROXY"] = 'https://irvingoliveira:system32@192.168.0.153:3128'
 
+    error_file = os.path.realpath('NS_INSTALL_ERROR_FILE')
+    if os.path.exists(error_file):
+        os.remove(error_file)
+
     calendarioSprints = 'nasajon.com.br_a6edh31lm6k4ntrbh6mdm91qng@group.calendar.google.com'
     calendarioCVF = 'nasajon.com.br_a6edh31lm6k4ntrbh6mdm91qng@group.calendar.google.com'
     try:
@@ -236,7 +270,7 @@ def main():
                         release = tag[5:tag.find('.')]
                         print(release)
                         nome_banco = preparaNomeBase(
-                            cliente + '_' + release + '_' + datetime.datetime.utcnow().strftime("%d-%m-%y")
+                            'tst2_' + cliente + '_' + release + '_' + datetime.datetime.utcnow().strftime("%d-%m-%y")
                         )
                         createDatabase(nome_banco)
                         if '*' not in tag:
