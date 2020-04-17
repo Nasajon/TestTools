@@ -18,7 +18,7 @@ def get_conexao(base):
     con = psycopg2.connect(
         dbname=base,
         user='postgres',
-        host='localhost',
+        host='192.168.0.4',
         password='postgres'
     )
 
@@ -75,7 +75,7 @@ def main():
         'fitas_flax_contabilizacao',
         'queiroz_campos_contabilizacao',
         'nasajon_contabilizacao',
-        'impecavel_contabilizacao'
+        #'impecavel_contabilizacao'
     ]
 
     print('Baixando o instalador %s' % nome_arquivo)
@@ -150,7 +150,7 @@ def main():
                     instalador,
                     '/NOBACKUP',
                     '/NOPAUSE',
-                    '-SRlocalhost',
+                    '-SR192.168.0.4',
                     '-PT5432',
                     '-USpostgres',
                     '-NB'+base_teste,

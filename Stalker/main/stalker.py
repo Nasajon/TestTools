@@ -74,7 +74,7 @@ def getConexao(base='postgres'):
     con = psycopg2.connect(
         dbname=base,
         user='postgres',
-        host='localhost',
+        host='192.168.0.4',
         password='postgres'
     )
 
@@ -147,7 +147,7 @@ def preparaAmbiente(nome_banco, num_release, num_build=None):
             destino,
             '/NOBACKUP',
             '/NOPAUSE',
-            '-SRlocalhost',
+            '-SR192.168.0.4',
             '-PT5432',
             '-USpostgres',
             '-NB%s' % nome_banco,
@@ -175,7 +175,7 @@ def atualizaEvento(calendar_id, evento_id, nome_banco):
                             '\n\n-----------------------' + \
                             '\nAtualizado por Stalker\n' + \
                             '----------------------- \n\nBanco = ' + \
-                            nome_banco + ' \nBase = 192.168.0.119:5432\n Login = postgres\n Senha = postgres'
+                            nome_banco + ' \nBase = 192.168.0.4:5432\n Login = postgres\n Senha = postgres'
     service.events().update(
         calendarId=calendar_id,
         eventId=evento_id,
@@ -198,7 +198,8 @@ def backupRestore(base, backup):
         [
             os.path.realpath('util/restaura_backup.bat'),
             nome_base,
-            bkp
+            bkp,
+            '192.168.0.4'
         ]
     )
 
@@ -270,7 +271,7 @@ def main():
                         release = tag[5:tag.find('.')]
                         print(release)
                         nome_banco = preparaNomeBase(
-                            'tst2_' + cliente + '_' + release + '_' + datetime.datetime.utcnow().strftime("%d-%m-%y")
+                            'tst_' + cliente + '_' + release + '_' + datetime.datetime.utcnow().strftime("%d-%m-%y")
                         )
                         createDatabase(nome_banco)
                         if '*' not in tag:
