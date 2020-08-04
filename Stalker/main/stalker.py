@@ -12,6 +12,8 @@ import datetime
 import pickle
 import os.path
 import psycopg2
+import gdown
+import warnings
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -89,7 +91,8 @@ def createDatabase(nome):
     result = cur.fetchall()
     if len(result) == 0:
         cur2 = getConexao().cursor()
-        cur2.execute("CREATE DATABASE %s WITH ENCODING = 'UTF8';" % nome)
+        cur2.execute(
+            "CREATE DATABASE %s WITH ENCODING = 'UTF8';" % nome)
         cur2.close()
 
         cur3 = getConexao().cursor()
@@ -184,6 +187,22 @@ def atualizaEvento(calendar_id, evento_id, nome_banco):
     ).execute()
 
 
+def backupDownload(backup_url, nome):
+    print("Fazendo download de %s." % backup_url)
+    output = "C:\\Backups\\%s.backup" % nome
+
+    with warnings.catch_warnings(record=True) as w:
+        gdown.download(backup_url, output, quiet=True)
+
+        if issubclass(w[-1].category, UserWarning):
+            if str(w[-1].message).find('https:') > 0:
+                new_url = str(w[-1].message)[str(w[-1].message).find('https:'):]
+                gdown.download(new_url, output, quiet=False)
+
+    print("Backup baixado em %s." % output)
+    return output
+
+
 def backupRestore(base, backup):
     print('Restaurando backup ' + backup + ' na base ' + base)
     nome_base = preparaNomeBase(base)
@@ -191,14 +210,11 @@ def backupRestore(base, backup):
     cur = getConexao(nome_base).cursor()
     cur.execute("SET CLIENT_ENCODING TO 'win1252'")
 
-    bkp = '\\\\nas-server\\suporte\\'+backup[3:]
-    print('Caminho do backup ajustado para ' + bkp)
-
     sp.call(
         [
             os.path.realpath('util/restaura_backup.bat'),
             nome_base,
-            bkp,
+            backup,
             '192.168.0.4'
         ]
     )
@@ -278,7 +294,13 @@ def main():
                             build = tag[tag.find(".") + 1:]
                     if '[backup]' in tag:
                         backup = tag[8:]
-                        backupRestore(nome_banco, backup)
+                        backupRestore(
+                            nome_banco,
+                            backupDownload(
+                                backup,
+                                cliente + '_' + datetime.datetime.utcnow().strftime("%d-%m-%y")
+                            )
+                        )
                 preparaAmbiente(nome_banco, release, build)
                 atualizaEvento(calendarioCVF, event['id'], nome_banco)
 
